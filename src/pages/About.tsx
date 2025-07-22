@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import Nav from "../components/Nav";
-import { useLogout } from "../hooks/UseLogout";
 import { getCompanyProfile } from "../supabase/actions";
 import { type Company } from "../utils/types";
+import { useLogout } from "../hooks/useLogout";
 
 export default function About() {
   const [companyInfo, setCompanyInfo] = useState<Company | null>(null);

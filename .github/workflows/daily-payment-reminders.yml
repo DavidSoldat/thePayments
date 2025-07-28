@@ -1,0 +1,55 @@
+# .github/workflows/daily-payment-reminders.yml
+name: Send Daily Payment Reminders
+
+on:
+  schedule:
+    # Run every day at 9:00 AM UTC (adjust timezone as needed)
+    - cron: "0 9 * * *"
+
+  # Allow manual triggering for testing
+  workflow_dispatch:
+
+jobs:
+  send-reminders:
+    name: Send Payment Reminders
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Send Payment Reminder Emails
+        run: |
+          echo "🚀 Triggering payment reminder emails..."
+
+          response=$(curl -s -w "\n%{http_code}" -X POST \
+            "${{ secrets.NETLIFY_FUNCTION_URL }}/send-payment-reminders" \
+            -H "Content-Type: application/json" \
+            -d '{}')
+
+          # Extract HTTP code (last line) and response body
+          http_code=$(echo "$response" | tail -n1)
+          response_body=$(echo "$response" | head -n -1)
+
+          echo "📡 HTTP Status: $http_code"
+          echo "📄 Response:"
+          echo "$response_body" | jq '.' || echo "$response_body"
+
+          if [ "$http_code" -ne 200 ]; then
+            echo "❌ Error: HTTP $http_code"
+            exit 1
+          fi
+
+          # Parse and display results
+          echo "$response_body" | jq -r '
+            if .success then
+              "✅ Success: " + .message + 
+              "\n📧 Emails sent: " + (.emailsSent // 0 | tostring) + 
+              "\n❌ Emails failed: " + (.emailsFailed // 0 | tostring)
+            else
+              "❌ Failed: " + (.error // "Unknown error")
+            end
+          ' || echo "✅ Payment reminders processed successfully"
+
+      - name: Log Completion
+        if: always()
+        run: |
+          echo "🏁 Payment reminder job completed at $(date -u)"
+          echo "⏰ Next scheduled run: Tomorrow at 9:00 AM UTC"

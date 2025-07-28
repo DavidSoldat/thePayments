@@ -6,13 +6,14 @@
   NODE_VERSION = "18"
   SECRETS_SCAN_ENABLED = "false"
 
-# Handle client-side routing
+[functions]
+  directory = "netlify/functions-build"
+
 [[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
 
-# Headers for better caching
 [[headers]]
   for = "/assets/*"
   [headers.values]

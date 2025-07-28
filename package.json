@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build && npm run build:functions",
+    "build": "tsc && vite build",
     "build:functions": "netlify-lambda build netlify/functions",
     "lint": "eslint .",
     "preview": "vite preview"

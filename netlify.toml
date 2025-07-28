@@ -7,7 +7,7 @@
   SECRETS_SCAN_ENABLED = "false"
 
 [functions]
-  directory = "netlify/functions-build"
+  directory = "netlify/functions"
 
 [[redirects]]
   from = "/*"

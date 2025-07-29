@@ -1,6 +1,390 @@
+// /* eslint-disable @typescript-eslint/no-explicit-any */
+// import { Handler } from "@netlify/functions";
+// import { createClient } from "@supabase/supabase-js";
+
+// type EmailResult = {
+//   userId: string;
+//   email: string;
+//   paymentCount: number;
+//   success: boolean;
+//   result?: any;
+//   error?: string;
+// };
+
+// const supabase = createClient(
+//   process.env.SUPABASE_URL!,
+//   process.env.SUPABASE_SERVICE_ROLE_KEY!,
+// );
+
+// export const handler: Handler = async (event) => {
+//   const headers = {
+//     "Access-Control-Allow-Origin": "*",
+//     "Access-Control-Allow-Headers": "Content-Type",
+//     "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+//   };
+
+//   if (event.httpMethod === "OPTIONS") {
+//     return {
+//       statusCode: 200,
+//       headers,
+//       body: "",
+//     };
+//   }
+
+//   try {
+//     const now = new Date();
+//     const currentDay = now.getDate();
+//     const currentMonth = now.getMonth() + 1;
+//     const currentYear = now.getFullYear();
+
+//     console.log(`Checking for payments due on ${now.toDateString()}`);
+
+//     const today = new Date().toISOString().split("T")[0];
+
+//     const { data: payments, error } = await supabase
+//       .from("payments")
+//       .select(
+//         `
+//     *,
+//     companies (
+//       name,
+//       user_id
+//     )
+//     `,
+//       )
+//       .gte("receiving_date", today);
+
+//     if (error) {
+//       console.error("Database query error:", error);
+//       throw error;
+//     }
+
+//     console.log("Payments yet to be received:", payments);
+
+//     console.log(`Found ${payments?.length || 0} unpaid payments total`);
+
+//     const duePayments =
+//       payments?.filter((payment) => {
+//         const agreementDay = payment.agreement_day;
+//         const paymentDelay = payment.payment_delay || 0;
+
+//         const dueDate = new Date(currentYear, currentMonth - 1, agreementDay);
+
+//         dueDate.setDate(dueDate.getDate() + paymentDelay);
+
+//         const isDueToday =
+//           dueDate.getDate() === currentDay &&
+//           dueDate.getMonth() === now.getMonth() &&
+//           dueDate.getFullYear() === currentYear;
+
+//         if (isDueToday) {
+//           console.log(
+//             `Payment due today: ${payment.companies?.name} - $${payment.payment_amount}`,
+//           );
+//         }
+
+//         return isDueToday;
+//       }) || [];
+
+//     console.log(`Found ${duePayments.length} payments due today`);
+
+//     if (duePayments.length === 0) {
+//       return {
+//         statusCode: 200,
+//         headers,
+//         body: JSON.stringify({
+//           success: true,
+//           message: "No payments due today",
+//           count: 0,
+//         }),
+//       };
+//     }
+
+//     const userIds = [
+//       ...new Set(duePayments.map((p) => p.companies?.user_id).filter(Boolean)),
+//     ];
+
+//     const { data: users, error: usersError } =
+//       await supabase.auth.admin.listUsers();
+
+//     if (usersError) {
+//       console.error("Error fetching user emails:", usersError);
+//       throw usersError;
+//     }
+
+//     const userEmailMap = new Map();
+//     users.users.forEach((user) => {
+//       if (userIds.includes(user.id)) {
+//         userEmailMap.set(user.id, user.email);
+//       }
+//     });
+
+//     console.log(`Found emails for ${userEmailMap.size} users`);
+
+//     const emailResults: EmailResult[] = [];
+
+//     const paymentsByUser = new Map();
+
+//     duePayments.forEach((payment) => {
+//       const userId = payment.companies?.user_id;
+//       if (userId && userEmailMap.has(userId)) {
+//         if (!paymentsByUser.has(userId)) {
+//           paymentsByUser.set(userId, []);
+//         }
+//         paymentsByUser.get(userId).push(payment);
+//       }
+//     });
+
+//     for (const [userId, userPayments] of paymentsByUser) {
+//       const userEmail = userEmailMap.get(userId);
+
+//       try {
+//         const result = await sendPaymentReminderEmail(userEmail, userPayments);
+//         emailResults.push({
+//           userId,
+//           email: userEmail,
+//           paymentCount: userPayments.length,
+//           success: true,
+//           result,
+//         });
+//         console.log(
+//           `✅ Email sent to ${userEmail} for ${userPayments.length} due payments`,
+//         );
+//       } catch (emailError) {
+//         console.error(`❌ Failed to send email to ${userEmail}:`, emailError);
+//         emailResults.push({
+//           userId,
+//           email: userEmail,
+//           paymentCount: userPayments.length,
+//           success: false,
+//           error: emailError.message,
+//         });
+//       }
+//     }
+
+//     const successfulEmails = emailResults.filter((r) => r.success).length;
+//     const failedEmails = emailResults.filter((r) => !r.success).length;
+
+//     return {
+//       statusCode: 200,
+//       headers,
+//       body: JSON.stringify({
+//         success: true,
+//         message: `Processed ${duePayments.length} due payments for ${paymentsByUser.size} users`,
+//         emailsSent: successfulEmails,
+//         emailsFailed: failedEmails,
+//         results: emailResults,
+//       }),
+//     };
+//   } catch (error) {
+//     console.error("Error in send-payment-reminders function:", error);
+
+//     return {
+//       statusCode: 500,
+//       headers,
+//       body: JSON.stringify({
+//         success: false,
+//         error: error.message,
+//       }),
+//     };
+//   }
+// };
+
+// async function sendPaymentReminderEmail(userEmail: string, payments: any[]) {
+//   const now = new Date();
+//   const totalAmount = payments.reduce((sum, p) => sum + p.payment_amount, 0);
+
+//   const paymentDetailsHtml = payments
+//     .map((payment) => {
+//       const agreementDay = payment.agreement_day;
+//       const paymentDelay = payment.payment_delay || 0;
+//       const dueDate = new Date(now.getFullYear(), now.getMonth(), agreementDay);
+//       dueDate.setDate(dueDate.getDate() + paymentDelay);
+
+//       return `
+//       <div style="border: 1px solid #e0e0e0; border-radius: 8px; padding: 15px; margin-bottom: 15px; background: #fafafa;">
+//         <div style="font-weight: bold; font-size: 18px; color: #2c3e50; margin-bottom: 5px;">
+//           ${payment.companies?.name || "Unknown Company"}
+//         </div>
+//         <div style="font-size: 24px; font-weight: bold; color: #dc3545; margin-bottom: 10px;">
+//           $${payment.payment_amount.toFixed(2)}
+//         </div>
+//         <div style="color: #666; font-size: 14px;">
+//           <div><strong>Due Date:</strong> ${dueDate.toLocaleDateString()}</div>
+//           <div><strong>Agreement Day:</strong> ${agreementDay}${getOrdinalSuffix(agreementDay)} of each month</div>
+//           ${paymentDelay > 0 ? `<div><strong>Payment Delay:</strong> ${paymentDelay} days</div>` : ""}
+//         </div>
+//       </div>
+//     `;
+//     })
+//     .join("");
+
+//   const emailData = {
+//     from: process.env.FROM_EMAIL || "noreply@yourdomain.com",
+//     to: userEmail,
+//     subject: `💰 ${payments.length > 1 ? `${payments.length} Payments` : "Payment"} Due Today - $${totalAmount.toFixed(2)}`,
+//     html: `
+//       <!DOCTYPE html>
+//       <html>
+//       <head>
+//         <meta charset="utf-8">
+//         <meta name="viewport" content="width=device-width, initial-scale=1.0">
+//         <style>
+//           body {
+//             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+//             line-height: 1.6;
+//             color: #333;
+//             margin: 0;
+//             padding: 0;
+//             background-color: #f5f5f5;
+//           }
+//           .container {
+//             max-width: 600px;
+//             margin: 0 auto;
+//             background: white;
+//             border-radius: 10px;
+//             overflow: hidden;
+//             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+//           }
+//           .header {
+//             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+//             color: white;
+//             padding: 30px 20px;
+//             text-align: center;
+//           }
+//           .header h1 {
+//             margin: 0;
+//             font-size: 28px;
+//             font-weight: 300;
+//           }
+//           .content {
+//             padding: 30px 20px;
+//           }
+//           .summary {
+//             background: #f8f9fa;
+//             border-radius: 8px;
+//             padding: 20px;
+//             margin-bottom: 25px;
+//             text-align: center;
+//           }
+//           .total-amount {
+//             font-size: 32px;
+//             font-weight: bold;
+//             color: #dc3545;
+//             margin: 10px 0;
+//           }
+//           .payment-count {
+//             color: #666;
+//             font-size: 16px;
+//           }
+//           .payments-section h2 {
+//             color: #2c3e50;
+//             border-bottom: 2px solid #eee;
+//             padding-bottom: 10px;
+//           }
+//           .footer {
+//             background: #f8f9fa;
+//             padding: 20px;
+//             text-align: center;
+//             font-size: 14px;
+//             color: #666;
+//             border-top: 1px solid #eee;
+//           }
+//           @media (max-width: 600px) {
+//             .container { margin: 10px; }
+//             .header, .content { padding: 20px 15px; }
+//           }
+//         </style>
+//       </head>
+//       <body>
+//         <div class="container">
+//           <div class="header">
+//             <h1>🔔 Payment${payments.length > 1 ? "s" : ""} Due Today</h1>
+//             <p style="margin: 10px 0 0 0; opacity: 0.9;">
+//               You have ${payments.length} payment${payments.length > 1 ? "s" : ""} due today
+//             </p>
+//           </div>
+
+//           <div class="content">
+//             <div class="summary">
+//               <div class="total-amount">$${totalAmount.toFixed(2)}</div>
+//               <div class="payment-count">
+//                 Total amount due from ${payments.length} payment${payments.length > 1 ? "s" : ""}
+//               </div>
+//             </div>
+
+//             <div class="payments-section">
+//               <h2>Payment Details</h2>
+//               ${paymentDetailsHtml}
+//             </div>
+//           </div>
+
+//           <div class="footer">
+//             <p><strong>Important:</strong> This is an automated reminder from your payment tracking system.</p>
+//             <p>Please ensure these payments are processed today to avoid any delays.</p>
+//             <p style="margin-top: 15px; font-size: 12px; color: #999;">
+//               Sent on ${now.toLocaleDateString()} at ${now.toLocaleTimeString()}
+//             </p>
+//           </div>
+//         </div>
+//       </body>
+//       </html>
+//     `,
+//   };
+
+//   const response = await fetch("https://api.resend.com/emails", {
+//     method: "POST",
+//     headers: {
+//       Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+//       "Content-Type": "application/json",
+//     },
+//     body: JSON.stringify(emailData),
+//   });
+
+//   if (!response.ok) {
+//     const errorData = await response.text();
+//     throw new Error(`Email service error: ${response.status} - ${errorData}`);
+//   }
+
+//   return await response.json();
+// }
+
+// function getOrdinalSuffix(day: number): string {
+//   if (day >= 11 && day <= 13) {
+//     return "th";
+//   }
+//   switch (day % 10) {
+//     case 1:
+//       return "st";
+//     case 2:
+//       return "nd";
+//     case 3:
+//       return "rd";
+//     default:
+//       return "th";
+//   }
+// }
+
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { Handler } from "@netlify/functions";
 import { createClient } from "@supabase/supabase-js";
+
+// Define a type for the payment data, including the joined company data
+// This improves type safety and readability
+type PaymentWithCompany = {
+  id: string;
+  user_id: string;
+  company_name: string;
+  agreement_day: string; // Assuming DATE comes as string 'YYYY-MM-DD'
+  payment_delay: number;
+  receiving_date: string; // Assuming DATE comes as string 'YYYY-MM-DD'
+  payment_amount: number;
+  created_at: string;
+  companies: {
+    name: string;
+    user_id: string;
+  } | null; // companies can be null if join fails or no related company
+};
 
 type EmailResult = {
   userId: string;
@@ -11,18 +395,21 @@ type EmailResult = {
   error?: string;
 };
 
+// Initialize Supabase client with service role key for admin access (e.g., listing users)
 const supabase = createClient(
   process.env.SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!,
 );
 
 export const handler: Handler = async (event) => {
+  // CORS headers for Netlify function
   const headers = {
-    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Origin": "*", // Adjust for specific origins in production
     "Access-Control-Allow-Headers": "Content-Type",
     "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
   };
 
+  // Handle preflight OPTIONS requests for CORS
   if (event.httpMethod === "OPTIONS") {
     return {
       statusCode: 200,
@@ -32,13 +419,20 @@ export const handler: Handler = async (event) => {
   }
 
   try {
-    const now = new Date();
-    const currentDay = now.getDate();
-    const currentMonth = now.getMonth() + 1;
-    const currentYear = now.getFullYear();
+    // Get today's date in 'YYYY-MM-DD' format for database comparison
+    // This is consistent with how your `receiving_date` is stored.
+    const today = new Date().toISOString().split("T")[0]; // e.g., "2025-07-29"
 
-    console.log(`Checking for payments due on ${now.toDateString()}`);
+    console.log(`Checking for payments due on ${today}`);
 
+    // Query payments:
+    // 1. Select all payments.
+    // 2. Join with companies to get company name and user_id.
+    // 3. Filter for payments where 'receiving_date' is today or in the future.
+    //    We use .eq to get only payments due *exactly* today. If you want
+    //    payments due *today or in the future*, use .gte as you had,
+    //    but then the subsequent filter needs to be .eq.
+    //    For "payments due today", .eq is more direct.
     const { data: payments, error } = await supabase
       .from("payments")
       .select(
@@ -48,43 +442,23 @@ export const handler: Handler = async (event) => {
           name,
           user_id
         )
-      `,
+        `,
       )
-      .is("receiving_date", null);
+      .eq("receiving_date", today); // Changed to .eq to get only payments due TODAY
 
     if (error) {
       console.error("Database query error:", error);
+      // Re-throw the error to be caught by the outer try/catch block
       throw error;
     }
 
-    console.log(`Found ${payments?.length || 0} unpaid payments total`);
+    // Cast the data to the defined type for better type inference
+    const paymentsDueToday: PaymentWithCompany[] = payments || [];
 
-    const duePayments =
-      payments?.filter((payment) => {
-        const agreementDay = payment.agreement_day;
-        const paymentDelay = payment.payment_delay || 0;
+    console.log(`Found ${paymentsDueToday.length} payments due today`);
 
-        const dueDate = new Date(currentYear, currentMonth - 1, agreementDay);
-
-        dueDate.setDate(dueDate.getDate() + paymentDelay);
-
-        const isDueToday =
-          dueDate.getDate() === currentDay &&
-          dueDate.getMonth() === now.getMonth() &&
-          dueDate.getFullYear() === currentYear;
-
-        if (isDueToday) {
-          console.log(
-            `Payment due today: ${payment.companies?.name} - $${payment.payment_amount}`,
-          );
-        }
-
-        return isDueToday;
-      }) || [];
-
-    console.log(`Found ${duePayments.length} payments due today`);
-
-    if (duePayments.length === 0) {
+    // If no payments are due today, return early
+    if (paymentsDueToday.length === 0) {
       return {
         statusCode: 200,
         headers,
@@ -96,10 +470,15 @@ export const handler: Handler = async (event) => {
       };
     }
 
+    // Get unique user IDs from the payments due today
     const userIds = [
-      ...new Set(duePayments.map((p) => p.companies?.user_id).filter(Boolean)),
+      ...new Set(
+        paymentsDueToday.map((p) => p.companies?.user_id).filter(Boolean),
+      ),
     ];
 
+    // Fetch user details (specifically emails) from Supabase Auth admin API
+    // This requires SUPABASE_SERVICE_ROLE_KEY
     const { data: users, error: usersError } =
       await supabase.auth.admin.listUsers();
 
@@ -108,9 +487,10 @@ export const handler: Handler = async (event) => {
       throw usersError;
     }
 
-    const userEmailMap = new Map();
+    // Create a map from userId to email for quick lookup
+    const userEmailMap = new Map<string, string>();
     users.users.forEach((user) => {
-      if (userIds.includes(user.id)) {
+      if (userIds.includes(user.id) && user.email) {
         userEmailMap.set(user.id, user.email);
       }
     });
@@ -118,21 +498,35 @@ export const handler: Handler = async (event) => {
     console.log(`Found emails for ${userEmailMap.size} users`);
 
     const emailResults: EmailResult[] = [];
+    const paymentsByUser = new Map<string, PaymentWithCompany[]>();
 
-    const paymentsByUser = new Map();
-
-    duePayments.forEach((payment) => {
+    // Group payments by user ID
+    paymentsDueToday.forEach((payment) => {
       const userId = payment.companies?.user_id;
       if (userId && userEmailMap.has(userId)) {
+        // Ensure user ID exists and we have an email for them
         if (!paymentsByUser.has(userId)) {
           paymentsByUser.set(userId, []);
         }
-        paymentsByUser.get(userId).push(payment);
+        paymentsByUser.get(userId)!.push(payment); // Use non-null assertion as we just checked has(userId)
       }
     });
 
+    // Iterate through each user and send their consolidated payment reminder email
     for (const [userId, userPayments] of paymentsByUser) {
       const userEmail = userEmailMap.get(userId);
+
+      if (!userEmail) {
+        console.warn(`Skipping email for userId ${userId}: No email found.`);
+        emailResults.push({
+          userId,
+          email: "N/A",
+          paymentCount: userPayments.length,
+          success: false,
+          error: "User email not found",
+        });
+        continue; // Skip to the next user
+      }
 
       try {
         const result = await sendPaymentReminderEmail(userEmail, userPayments);
@@ -146,14 +540,15 @@ export const handler: Handler = async (event) => {
         console.log(
           `✅ Email sent to ${userEmail} for ${userPayments.length} due payments`,
         );
-      } catch (emailError) {
+      } catch (emailError: any) {
+        // Catch as 'any' for flexibility, then refine if needed
         console.error(`❌ Failed to send email to ${userEmail}:`, emailError);
         emailResults.push({
           userId,
           email: userEmail,
           paymentCount: userPayments.length,
           success: false,
-          error: emailError.message,
+          error: emailError.message || "Unknown email sending error",
         });
       }
     }
@@ -166,13 +561,14 @@ export const handler: Handler = async (event) => {
       headers,
       body: JSON.stringify({
         success: true,
-        message: `Processed ${duePayments.length} due payments for ${paymentsByUser.size} users`,
+        message: `Processed ${paymentsDueToday.length} due payments for ${paymentsByUser.size} users`,
         emailsSent: successfulEmails,
         emailsFailed: failedEmails,
         results: emailResults,
       }),
     };
-  } catch (error) {
+  } catch (error: any) {
+    // Catch as 'any' for flexibility
     console.error("Error in send-payment-reminders function:", error);
 
     return {
@@ -180,38 +576,50 @@ export const handler: Handler = async (event) => {
       headers,
       body: JSON.stringify({
         success: false,
-        error: error.message,
+        error: error.message || "An unexpected error occurred",
       }),
     };
   }
 };
 
-async function sendPaymentReminderEmail(userEmail: string, payments: any[]) {
+/**
+ * Sends a payment reminder email to a specific user with details of their due payments.
+ * @param userEmail The email address of the user.
+ * @param payments An array of payment objects due for this user.
+ */
+async function sendPaymentReminderEmail(
+  userEmail: string,
+  payments: PaymentWithCompany[],
+) {
   const now = new Date();
   const totalAmount = payments.reduce((sum, p) => sum + p.payment_amount, 0);
 
   const paymentDetailsHtml = payments
     .map((payment) => {
-      const agreementDay = payment.agreement_day;
-      const paymentDelay = payment.payment_delay || 0;
-      const dueDate = new Date(now.getFullYear(), now.getMonth(), agreementDay);
-      dueDate.setDate(dueDate.getDate() + paymentDelay);
+      // Use payment.receiving_date directly as it's the actual due date
+      const displayDueDate = new Date(
+        payment.receiving_date,
+      ).toLocaleDateString();
+
+      // agreement_day is a full date string, not just the day number.
+      // Extract the day number for the ordinal suffix.
+      const agreementDayNum = new Date(payment.agreement_day).getDate();
 
       return `
-      <div style="border: 1px solid #e0e0e0; border-radius: 8px; padding: 15px; margin-bottom: 15px; background: #fafafa;">
-        <div style="font-weight: bold; font-size: 18px; color: #2c3e50; margin-bottom: 5px;">
-          ${payment.companies?.name || "Unknown Company"}
+        <div style="border: 1px solid #e0e0e0; border-radius: 8px; padding: 15px; margin-bottom: 15px; background: #fafafa;">
+          <div style="font-weight: bold; font-size: 18px; color: #2c3e50; margin-bottom: 5px;">
+            ${payment.companies?.name || "Unknown Company"}
+          </div>
+          <div style="font-size: 24px; font-weight: bold; color: #dc3545; margin-bottom: 10px;">
+            $${payment.payment_amount.toFixed(2)}
+          </div>
+          <div style="color: #666; font-size: 14px;">
+            <div><strong>Due Date:</strong> ${displayDueDate}</div>
+            <div><strong>Agreement Day:</strong> ${agreementDayNum}${getOrdinalSuffix(agreementDayNum)} of each month</div>
+            ${payment.payment_delay > 0 ? `<div><strong>Payment Delay:</strong> ${payment.payment_delay} days</div>` : ""}
+          </div>
         </div>
-        <div style="font-size: 24px; font-weight: bold; color: #dc3545; margin-bottom: 10px;">
-          $${payment.payment_amount.toFixed(2)}
-        </div>
-        <div style="color: #666; font-size: 14px;">
-          <div><strong>Due Date:</strong> ${dueDate.toLocaleDateString()}</div>
-          <div><strong>Agreement Day:</strong> ${agreementDay}${getOrdinalSuffix(agreementDay)} of each month</div>
-          ${paymentDelay > 0 ? `<div><strong>Payment Delay:</strong> ${paymentDelay} days</div>` : ""}
-        </div>
-      </div>
-    `;
+      `;
     })
     .join("");
 
@@ -226,26 +634,26 @@ async function sendPaymentReminderEmail(userEmail: string, payments: any[]) {
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <style>
-          body { 
+          body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-            line-height: 1.6; 
-            color: #333; 
-            margin: 0; 
+            line-height: 1.6;
+            color: #333;
+            margin: 0;
             padding: 0;
             background-color: #f5f5f5;
           }
-          .container { 
-            max-width: 600px; 
-            margin: 0 auto; 
+          .container {
+            max-width: 600px;
+            margin: 0 auto;
             background: white;
             border-radius: 10px;
             overflow: hidden;
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
           }
-          .header { 
+          .header {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
-            padding: 30px 20px; 
+            padding: 30px 20px;
             text-align: center;
           }
           .header h1 {
@@ -278,11 +686,11 @@ async function sendPaymentReminderEmail(userEmail: string, payments: any[]) {
             border-bottom: 2px solid #eee;
             padding-bottom: 10px;
           }
-          .footer { 
+          .footer {
             background: #f8f9fa;
-            padding: 20px; 
+            padding: 20px;
             text-align: center;
-            font-size: 14px; 
+            font-size: 14px;
             color: #666;
             border-top: 1px solid #eee;
           }
@@ -300,7 +708,7 @@ async function sendPaymentReminderEmail(userEmail: string, payments: any[]) {
               You have ${payments.length} payment${payments.length > 1 ? "s" : ""} due today
             </p>
           </div>
-          
+
           <div class="content">
             <div class="summary">
               <div class="total-amount">$${totalAmount.toFixed(2)}</div>
@@ -308,13 +716,13 @@ async function sendPaymentReminderEmail(userEmail: string, payments: any[]) {
                 Total amount due from ${payments.length} payment${payments.length > 1 ? "s" : ""}
               </div>
             </div>
-            
+
             <div class="payments-section">
               <h2>Payment Details</h2>
               ${paymentDetailsHtml}
             </div>
           </div>
-          
+
           <div class="footer">
             <p><strong>Important:</strong> This is an automated reminder from your payment tracking system.</p>
             <p>Please ensure these payments are processed today to avoid any delays.</p>
@@ -328,6 +736,7 @@ async function sendPaymentReminderEmail(userEmail: string, payments: any[]) {
     `,
   };
 
+  // Send the email using Resend API
   const response = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: {
@@ -337,6 +746,7 @@ async function sendPaymentReminderEmail(userEmail: string, payments: any[]) {
     body: JSON.stringify(emailData),
   });
 
+  // Check if the email sending was successful
   if (!response.ok) {
     const errorData = await response.text();
     throw new Error(`Email service error: ${response.status} - ${errorData}`);
@@ -345,6 +755,11 @@ async function sendPaymentReminderEmail(userEmail: string, payments: any[]) {
   return await response.json();
 }
 
+/**
+ * Returns the ordinal suffix for a day number (e.g., "st", "nd", "rd", "th").
+ * @param day The day number (1-31).
+ * @returns The ordinal suffix.
+ */
 function getOrdinalSuffix(day: number): string {
   if (day >= 11 && day <= 13) {
     return "th";

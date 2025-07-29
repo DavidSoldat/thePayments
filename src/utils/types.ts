@@ -14,6 +14,7 @@ export interface Payment {
   receiving_date: string | null;
   payment_amount: number | null;
   created_at: string;
+  company_id: string;
 }
 
 export interface AuthResult {

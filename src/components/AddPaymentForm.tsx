@@ -1,82 +1,3 @@
-// import { Button, TextField } from "@mui/material";
-// import { DatePicker, LocalizationProvider } from "@mui/x-date-pickers";
-// import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
-// import dayjs, { Dayjs } from "dayjs";
-// import { useState } from "react";
-
-// export default function AddPaymentForm() {
-//   const [company_name, setcompany_name] = useState<string>("");
-//   const [agreement_day, setagreement_day] = useState<Dayjs | null>(dayjs());
-//   const [payment_delay, setpayment_delay] = useState("");
-//   const [payment_amountnt, setpayment_amountnt] = useState("");
-
-//   const formattedagreement_day = dayjs(agreement_day, "DD/MM/YYYY").format(
-//     "YYYY-MM-DD",
-//   );
-//   const receiving_dateate = dayjs(agreement_day)
-//     .add(payment_delay, "day")
-//     .format("YYYY-MM-DD");
-
-//   async function handleSubmit(e) {
-//     e.preventDefault();
-//     addPayment({
-//       company_name: company_name,
-//       agreement_day: formattedagreement_day,
-//       payment_delay: payment_delay,
-//       receiving_date: receiving_dateate,
-//       payment_amount: payment_amountnt,
-//     });
-
-//     setcompany_name("");
-//     setagreement_day(dayjs());
-//     setpayment_delay("");
-//     setpayment_amountnt("");
-//   }
-
-//   return (
-//     <form
-//       onSubmit={handleSubmit}
-//       className="flex h-fit max-w-xs flex-col gap-3 border border-gray-100 bg-white p-8 drop-shadow-sm md:gap-5 lg:mt-0"
-//     >
-//       <TextField
-//         id="outlined"
-//         label="Company name"
-//         value={company_name}
-//         onChange={(newName) => setcompany_name(newName.target.value)}
-//       />
-//       <LocalizationProvider dateAdapter={AdapterDayjs}>
-//         <DatePicker
-//           label="Agreement day"
-//           value={agreement_day}
-//           onChange={(agreement_day) => setagreement_day(agreement_day)}
-//         />
-//       </LocalizationProvider>
-//       <TextField
-//         id="outlined-number"
-//         label="Number of days"
-//         type="number"
-//         value={payment_delay}
-//         onChange={(newDelay) => setpayment_delay(newDelay.target.value)}
-//       />
-//       <TextField
-//         id="outlined-number2"
-//         label="Payment amount"
-//         type="number"
-//         value={payment_amountnt}
-//         onChange={(newAmount) => setpayment_amountnt(newAmount.target.value)}
-//       />
-
-//       <Button
-//         variant="contained"
-//         style={{ backgroundColor: "oklch(44.3% 0.11 240.79)" }}
-//         type="submit"
-//       >
-//         Add
-//       </Button>
-//     </form>
-//   );
-// }
-
 import { useState } from "react";
 import { TextField, Button } from "@mui/material";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
@@ -96,6 +17,8 @@ export default function AddPaymentForm({
   const [payment_delay, setpayment_delay] = useState<string>("");
   const [payment_amount, setpayment_amount] = useState<string>("");
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+
+  const companyId = JSON.parse(localStorage.getItem("company") ?? "{}").id;
 
   const formattedagreement_day = agreement_day
     ? dayjs(agreement_day).format("YYYY-MM-DD")
@@ -130,6 +53,7 @@ export default function AddPaymentForm({
         payment_delay: parseInt(payment_delay),
         receiving_date: receiving_date,
         payment_amount: parseFloat(payment_amount),
+        company_id: companyId,
       });
 
       setcompany_name("");

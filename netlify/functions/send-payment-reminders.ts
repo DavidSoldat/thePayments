@@ -50,7 +50,7 @@ export const handler: Handler = async (event) => {
         )
       `,
       )
-      .is("receiving_date", null); 
+      .is("receiving_date", null);
 
     if (error) {
       console.error("Database query error:", error);

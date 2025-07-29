@@ -32,7 +32,6 @@ export const handler: Handler = async (event) => {
   }
 
   try {
-    // Get current date info
     const now = new Date();
     const currentDay = now.getDate();
     const currentMonth = now.getMonth() + 1;
@@ -40,7 +39,6 @@ export const handler: Handler = async (event) => {
 
     console.log(`Checking for payments due on ${now.toDateString()}`);
 
-    // Query payments with user information
     const { data: payments, error } = await supabase
       .from("payments")
       .select(
@@ -52,7 +50,7 @@ export const handler: Handler = async (event) => {
         )
       `,
       )
-      .is("receiving_date", null); // Only unpaid payments
+      .is("receiving_date", null); 
 
     if (error) {
       console.error("Database query error:", error);
@@ -68,10 +66,8 @@ export const handler: Handler = async (event) => {
 
         const dueDate = new Date(currentYear, currentMonth - 1, agreementDay);
 
-        // Add payment delay
         dueDate.setDate(dueDate.getDate() + paymentDelay);
 
-        // Check if due date is today
         const isDueToday =
           dueDate.getDate() === currentDay &&
           dueDate.getMonth() === now.getMonth() &&
@@ -100,7 +96,6 @@ export const handler: Handler = async (event) => {
       };
     }
 
-    // Get user emails for the companies with due payments
     const userIds = [
       ...new Set(duePayments.map((p) => p.companies?.user_id).filter(Boolean)),
     ];
@@ -113,7 +108,6 @@ export const handler: Handler = async (event) => {
       throw usersError;
     }
 
-    // Create a map of user_id to email
     const userEmailMap = new Map();
     users.users.forEach((user) => {
       if (userIds.includes(user.id)) {
@@ -123,12 +117,10 @@ export const handler: Handler = async (event) => {
 
     console.log(`Found emails for ${userEmailMap.size} users`);
 
-    // Group payments by user and send emails
     const emailResults: EmailResult[] = [];
 
     const paymentsByUser = new Map();
 
-    // Group payments by user
     duePayments.forEach((payment) => {
       const userId = payment.companies?.user_id;
       if (userId && userEmailMap.has(userId)) {
@@ -139,7 +131,6 @@ export const handler: Handler = async (event) => {
       }
     });
 
-    // Send emails to each user with their due payments
     for (const [userId, userPayments] of paymentsByUser) {
       const userEmail = userEmailMap.get(userId);
 
@@ -199,7 +190,6 @@ async function sendPaymentReminderEmail(userEmail: string, payments: any[]) {
   const now = new Date();
   const totalAmount = payments.reduce((sum, p) => sum + p.payment_amount, 0);
 
-  // Create payment details HTML
   const paymentDetailsHtml = payments
     .map((payment) => {
       const agreementDay = payment.agreement_day;
@@ -338,7 +328,6 @@ async function sendPaymentReminderEmail(userEmail: string, payments: any[]) {
     `,
   };
 
-  // Send email using Resend
   const response = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: {

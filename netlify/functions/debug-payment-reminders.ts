@@ -348,7 +348,7 @@ export const handler: Handler = async (event, context) => {
             has_from_email: !!process.env.FROM_EMAIL, // Check for FROM_EMAIL even if not used in debug
           },
         },
-        null, // replacer
+        null,
         2, // space for pretty printing
       ),
     };

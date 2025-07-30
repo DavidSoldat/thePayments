@@ -615,7 +615,7 @@ async function sendPaymentReminderEmail(
           </div>
           <div style="color: #666; font-size: 14px;">
             <div><strong>Due Date:</strong> ${displayDueDate}</div>
-            <div><strong>Agreement Day:</strong> ${agreementDayNum}${getOrdinalSuffix(agreementDayNum)} of each month</div>
+            <div><strong>Agreement Day:</strong> ${agreementDayNum}${getOrdinalSuffix(agreementDayNum)}</div>
             ${payment.payment_delay > 0 ? `<div><strong>Payment Delay:</strong> ${payment.payment_delay} days</div>` : ""}
           </div>
         </div>

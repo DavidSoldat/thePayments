@@ -608,7 +608,7 @@ async function sendPaymentReminderEmail(
       return `
         <div style="border: 1px solid #e0e0e0; border-radius: 8px; padding: 15px; margin-bottom: 15px; background: #fafafa;">
           <div style="font-weight: bold; font-size: 18px; color: #2c3e50; margin-bottom: 5px;">
-            ${payment.companies?.name || "Unknown Company"}
+            ${payment.company_name || "Unknown Company"}
           </div>
           <div style="font-size: 24px; font-weight: bold; color: #dc3545; margin-bottom: 10px;">
             $${payment.payment_amount.toFixed(2)}

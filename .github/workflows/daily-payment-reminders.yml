@@ -1,12 +1,9 @@
-# .github/workflows/daily-payment-reminders.yml
 name: Send Daily Payment Reminders
 
 on:
   schedule:
-    # Run every day at 9:00 AM UTC (adjust timezone as needed)
     - cron: "0 9 * * *"
 
-  # Allow manual triggering for testing
   workflow_dispatch:
 
 jobs:
